@@ -1,3 +1,9 @@
+/*Package curlit dump request as curl command
+
+Usually use in errors cases where the request is dump to some persistance (GCS, S3) and later execute again
+
+Example: See tests
+*/
 package curlit
 
 import (
