@@ -10,18 +10,35 @@ import (
 	"bytes"
 	"io"
 	"net/http"
-	"strings"
 )
+
+const newLine = " \\\n"
 
 //Dump create curl command string from http.Request
 func Dump(req *http.Request) (string, error) {
-	curl := bytes.NewBuffer([]byte(`curl `))
-	headers := bytes.NewBuffer([]byte{})
+	curl := bytes.NewBuffer([]byte(`curl -X `))
+	curl.WriteString(req.Method)
+	curl.WriteString(newLine)
+	curl.WriteString(req.URL.String())
+	curl.WriteString(newLine)
 
+	if req.Method == http.MethodPost {
+		w := bytes.NewBuffer(nil)
+		io.Copy(w, req.Body)
+
+		if w.Len() > 0 {
+			curl.WriteString(` -d '`)
+			w.WriteTo(curl)
+			curl.WriteString(`'`)
+			curl.WriteString(newLine)
+		}
+	}
+
+	headers := bytes.NewBuffer([]byte{})
 	if len(req.Header) > 0 {
 		headers = bytes.NewBuffer([]byte{})
 		for k, v := range req.Header {
-			headers.WriteString(` -H "`)
+			headers.WriteString(` -H '`)
 			headers.WriteString(k)
 			headers.WriteRune(':')
 			for i := range v {
@@ -31,21 +48,18 @@ func Dump(req *http.Request) (string, error) {
 				}
 			}
 
-			headers.WriteString(`" `)
-
+			headers.WriteString(`'`)
+			headers.WriteString(newLine)
 		}
 	}
-	io.Copy(curl, headers)
-
-	if req.Method == http.MethodPost {
-		curl.WriteString(` -d "`)
-		w := bytes.NewBuffer([]byte{})
-		io.Copy(w, req.Body)
-		body := strings.Replace(w.String(), `"`, `/"`, -1)
-		curl.WriteString(body)
-		curl.WriteString(`" `)
+	headers.WriteTo(curl)
+	b := curl.Bytes()
+	ii := len(b) - 1
+	for ; ii > 0; ii-- {
+		if b[ii] == 92 {
+			break
+		}
 	}
-	curl.WriteString(req.URL.String())
-
-	return curl.String(), nil
+	s := string(b[:ii-1])
+	return s, nil
 }
