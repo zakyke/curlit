@@ -1,2 +1,2 @@
 # curlit
-Dump http.Request to curl commnd
+Dump http.Request to curl command
